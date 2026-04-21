@@ -117,7 +117,7 @@ $rg        = if ($envMap.ContainsKey('AZURE_RESOURCE_GROUP'))  { $envMap['AZURE_
 $prefix    = if ($envMap.ContainsKey('DR_PREFIX'))             { $envMap['DR_PREFIX'] }             else { 'drsandbox' }
 $primary   = if ($envMap.ContainsKey('AZURE_LOCATION'))        { $envMap['AZURE_LOCATION'] }        else { 'eastus2' }
 $secondary = if ($envMap.ContainsKey('DR_SECONDARY_LOCATION')) { $envMap['DR_SECONDARY_LOCATION'] } else { 'westus2' }
-$mode      = if ($envMap.ContainsKey('DR_DEPLOYMENT_MODE'))    { $envMap['DR_DEPLOYMENT_MODE'] }    else { 'all' }
+$mode      = if ($envMap.ContainsKey('DR_DEPLOYMENT_MODE'))    { $envMap['DR_DEPLOYMENT_MODE'] }    else { 'iaas' }
 
 $vaultName = "$prefix-rsv"
 $cacheAcctName = ($prefix -replace '[^a-z0-9]','') + 'cache'

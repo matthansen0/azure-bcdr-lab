@@ -1,6 +1,6 @@
 using 'main.bicep'
 
-param deploymentMode = readEnvironmentVariable('DR_DEPLOYMENT_MODE', 'all')
+param deploymentMode = readEnvironmentVariable('DR_DEPLOYMENT_MODE', 'iaas')
 param prefix = readEnvironmentVariable('DR_PREFIX', 'drsandbox')
 param primaryLocation = readEnvironmentVariable('AZURE_LOCATION', 'eastus2')
 param secondaryLocation = readEnvironmentVariable('DR_SECONDARY_LOCATION', 'westus2')

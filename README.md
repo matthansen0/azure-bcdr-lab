@@ -95,8 +95,8 @@ az login --use-device-code
 Defaults are set in [.devcontainer/devcontainer.json](.devcontainer/devcontainer.json) `remoteEnv`. Override only what you need:
 
 ```bash
-# Mode: iaas | paas | all (default: all)
-azd env set DR_DEPLOYMENT_MODE all
+# Mode: iaas | paas | all (default: iaas)
+azd env set DR_DEPLOYMENT_MODE iaas
 
 # Regions (must differ)
 azd env set AZURE_LOCATION eastus2
@@ -117,7 +117,7 @@ azd env set DR_VM_ADMIN_PASSWORD '<secure-password>'
 
 | Variable                  | Default       | Notes                                      |
 |---------------------------|---------------|--------------------------------------------|
-| `DR_DEPLOYMENT_MODE`      | `all`         | `iaas`, `paas`, or `all`                   |
+| `DR_DEPLOYMENT_MODE`      | `iaas`        | `iaas`, `paas`, or `all`                   |
 | `DR_PREFIX`               | `drsandbox`   | Resource naming prefix                     |
 | `AZURE_LOCATION`          | `eastus2`     | Primary region                             |
 | `DR_SECONDARY_LOCATION`   | `westus2`     | Secondary region (must differ from primary)|

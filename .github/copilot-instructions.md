@@ -6,7 +6,7 @@ Azure BCDR Lab is an `azd`-powered lab environment for practicing Azure business
 
 ## Architecture
 
-- **Deployment modes:** `iaas`, `paas`, `all` (default `all`), controlled by `DR_DEPLOYMENT_MODE` env var.
+- **Deployment modes:** `iaas`, `paas`, `all` (default `iaas`), controlled by `DR_DEPLOYMENT_MODE` env var.
 - **Primary region:** `eastus2` (default). **Secondary region:** `westus2` (default).
 - **IaaS path:** 2 Linux + 1 Windows VMs, protected by Azure Site Recovery (A2A).
 - **PaaS path:** App Service + Azure SQL with geo-replication via failover groups.
@@ -64,7 +64,7 @@ docs/
 ### Environment Variables
 | Variable | Default | Purpose |
 |---|---|---|
-| `DR_DEPLOYMENT_MODE` | `all` | `iaas`, `paas`, or `all` |
+| `DR_DEPLOYMENT_MODE` | `iaas` | `iaas`, `paas`, or `all` |
 | `DR_PREFIX` | `drsandbox` | Resource naming prefix |
 | `AZURE_LOCATION` | `eastus2` | Primary region |
 | `DR_SECONDARY_LOCATION` | `westus2` | Secondary / DR region |

@@ -6,7 +6,7 @@ targetScope = 'resourceGroup'
   'paas'
   'all'
 ])
-param deploymentMode string = 'all'
+param deploymentMode string = 'iaas'
 
 @description('Prefix used for resource naming.')
 param prefix string = 'drsandbox'

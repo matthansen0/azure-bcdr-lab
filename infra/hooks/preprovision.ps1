@@ -36,7 +36,7 @@ function Get-AzdEnvMap {
 }
 
 $envMap = Get-AzdEnvMap
-$mode = if ($envMap.ContainsKey('DR_DEPLOYMENT_MODE')) { $envMap['DR_DEPLOYMENT_MODE'] } else { 'all' }
+$mode = if ($envMap.ContainsKey('DR_DEPLOYMENT_MODE')) { $envMap['DR_DEPLOYMENT_MODE'] } else { 'iaas' }
 
 if ($mode -notin @('iaas', 'paas', 'all')) {
   throw "DR_DEPLOYMENT_MODE must be one of iaas, paas, all. Current value: $mode"

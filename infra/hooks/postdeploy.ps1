@@ -13,7 +13,7 @@ function Get-AzdEnvMap {
 }
 
 $envMap = Get-AzdEnvMap
-$mode = if ($envMap.ContainsKey('DR_DEPLOYMENT_MODE')) { $envMap['DR_DEPLOYMENT_MODE'] } else { 'all' }
+$mode = if ($envMap.ContainsKey('DR_DEPLOYMENT_MODE')) { $envMap['DR_DEPLOYMENT_MODE'] } else { 'iaas' }
 
 if ($mode -eq 'iaas' -or $mode -eq 'all') {
   $autoEnable = if ($envMap.ContainsKey('DR_ASR_AUTO_ENABLE')) { $envMap['DR_ASR_AUTO_ENABLE'] } else { 'false' }

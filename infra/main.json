@@ -11,7 +11,7 @@
   "parameters": {
     "deploymentMode": {
       "type": "string",
-      "defaultValue": "all",
+      "defaultValue": "iaas",
       "allowedValues": [
         "iaas",
         "paas",
