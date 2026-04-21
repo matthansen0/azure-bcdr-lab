@@ -103,7 +103,7 @@
   },
   "variables": {
     "tags": {
-      "workload": "azure-dr-sandbox",
+      "workload": "azure-bcdr-lab",
       "deploymentMode": "[parameters('deploymentMode')]",
       "managedBy": "azd"
     }

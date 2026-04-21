@@ -1,6 +1,6 @@
-name: azure-dr-sandbox
+name: azure-bcdr-lab
 metadata:
-  template: azure-dr-sandbox@0.1.0
+  template: azure-bcdr-lab@0.1.0
 
 infra:
   provider: bicep

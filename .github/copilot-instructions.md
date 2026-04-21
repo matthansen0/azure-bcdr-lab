@@ -1,8 +1,8 @@
-# Copilot Instructions — Azure DR Sandbox
+# Copilot Instructions — Azure BCDR Lab
 
 ## Project Overview
 
-Azure DR Sandbox is an `azd`-powered lab environment for practicing Azure disaster recovery (DR). It deploys IaaS and/or PaaS resources across two Azure regions and provides portal-first labs using Azure Continuity Center and Recovery Services Vault.
+Azure BCDR Lab is an `azd`-powered lab environment for practicing Azure business continuity and disaster recovery (BCDR). It deploys IaaS and/or PaaS resources across two Azure regions and provides portal-first labs using Azure Continuity Center and Recovery Services Vault.
 
 ## Architecture
 

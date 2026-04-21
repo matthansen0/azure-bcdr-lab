@@ -45,7 +45,7 @@ param sqlAadAdminTenantId string = tenant().tenantId
 param appServiceSkuName string = 'P0v3'
 
 var tags = {
-  workload: 'azure-dr-sandbox'
+  workload: 'azure-bcdr-lab'
   deploymentMode: deploymentMode
   managedBy: 'azd'
 }

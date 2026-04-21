@@ -190,7 +190,7 @@ def main():
     E.append(T(lx, ly+58, "\u2500\u2500  Traffic reroute",  fs=11, c="#06b6d4"))
     E.append(T(lx, ly+76, "\u2500\u2500  RSV management",   fs=11, c="#f59e0b"))
 
-    doc = {"type":"excalidraw","version":2,"source":"azure-dr-sandbox",
+    doc = {"type":"excalidraw","version":2,"source":"azure-bcdr-lab",
            "elements":E,"appState":{"gridSize":None,"viewBackgroundColor":"#ffffff"},"files":{}}
     p = os.path.join(OUT, "architecture.excalidraw")
     with open(p,"w") as f: json.dump(doc,f,indent=2)

@@ -1,6 +1,6 @@
-# Azure DR Sandbox
+# Azure BCDR Lab
 
-> End-to-end Azure disaster recovery lab — Azure Site Recovery for IaaS, App Service + Azure SQL geo-replication for PaaS, driven by Bicep and the Azure Developer CLI (azd). Portal-first exercises in Azure Continuity Center and Recovery Services Vault.
+> End-to-end Azure business continuity and disaster recovery lab — Azure Site Recovery for IaaS, App Service + Azure SQL geo-replication for PaaS, driven by Bicep and the Azure Developer CLI (azd). Portal-first exercises in Azure Continuity Center and Recovery Services Vault.
 
 ---
 
