@@ -1,0 +1,963 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.42.1.51946",
+      "templateHash": "4763912210185722269"
+    }
+  },
+  "parameters": {
+    "deploymentMode": {
+      "type": "string",
+      "defaultValue": "all",
+      "allowedValues": [
+        "iaas",
+        "paas",
+        "all"
+      ],
+      "metadata": {
+        "description": "Deployment mode: iaas, paas, or all."
+      }
+    },
+    "prefix": {
+      "type": "string",
+      "defaultValue": "drsandbox",
+      "metadata": {
+        "description": "Prefix used for resource naming."
+      }
+    },
+    "primaryLocation": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Primary deployment location."
+      }
+    },
+    "secondaryLocation": {
+      "type": "string",
+      "defaultValue": "westus2",
+      "metadata": {
+        "description": "Secondary DR location."
+      }
+    },
+    "linuxVmCount": {
+      "type": "int",
+      "defaultValue": 2,
+      "minValue": 1,
+      "maxValue": 5,
+      "metadata": {
+        "description": "Number of Linux VMs for IaaS lab."
+      }
+    },
+    "deployWindowsVm": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Deploy a Windows VM in IaaS lab."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "azureuser",
+      "metadata": {
+        "description": "Admin username for lab VMs."
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Admin password for Windows VM."
+      }
+    },
+    "sqlAadAdminName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "SQL admin username for PaaS SQL servers."
+      }
+    },
+    "sqlAadAdminObjectId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Object ID of the Entra ID SQL admin."
+      }
+    },
+    "sqlAadAdminTenantId": {
+      "type": "string",
+      "defaultValue": "[tenant().tenantId]",
+      "metadata": {
+        "description": "Tenant ID for Entra ID SQL admin."
+      }
+    },
+    "appServiceSkuName": {
+      "type": "string",
+      "defaultValue": "P0v3",
+      "metadata": {
+        "description": "App Service Plan SKU name for PaaS lab (e.g. F1, B1, S1, P0v3)."
+      }
+    }
+  },
+  "variables": {
+    "tags": {
+      "workload": "azure-dr-sandbox",
+      "deploymentMode": "[parameters('deploymentMode')]",
+      "managedBy": "azd"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "shared-networking",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "prefix": {
+            "value": "[parameters('prefix')]"
+          },
+          "primaryLocation": {
+            "value": "[parameters('primaryLocation')]"
+          },
+          "secondaryLocation": {
+            "value": "[parameters('secondaryLocation')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "9625401916541212751"
+            }
+          },
+          "parameters": {
+            "prefix": {
+              "type": "string"
+            },
+            "primaryLocation": {
+              "type": "string"
+            },
+            "secondaryLocation": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "variables": {
+            "primaryVnetName": "[format('{0}-vnet-{1}', parameters('prefix'), parameters('primaryLocation'))]",
+            "secondaryVnetName": "[format('{0}-vnet-{1}', parameters('prefix'), parameters('secondaryLocation'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-05-01",
+              "name": "[variables('primaryVnetName')]",
+              "location": "[parameters('primaryLocation')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "10.20.0.0/16"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "iaas-subnet",
+                    "properties": {
+                      "addressPrefix": "10.20.1.0/24"
+                    }
+                  },
+                  {
+                    "name": "test-failover-subnet",
+                    "properties": {
+                      "addressPrefix": "10.20.2.0/24"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2024-05-01",
+              "name": "[variables('secondaryVnetName')]",
+              "location": "[parameters('secondaryLocation')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "10.30.0.0/16"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "iaas-subnet",
+                    "properties": {
+                      "addressPrefix": "10.30.1.0/24"
+                    }
+                  },
+                  {
+                    "name": "test-failover-subnet",
+                    "properties": {
+                      "addressPrefix": "10.30.2.0/24"
+                    }
+                  }
+                ]
+              }
+            }
+          ],
+          "outputs": {
+            "primaryVnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('primaryVnetName'))]"
+            },
+            "secondaryVnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks', variables('secondaryVnetName'))]"
+            },
+            "primaryIaasSubnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('primaryVnetName'), 'iaas-subnet')]"
+            },
+            "secondaryIaasSubnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('secondaryVnetName'), 'iaas-subnet')]"
+            },
+            "primaryTestFailoverSubnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('primaryVnetName'), 'test-failover-subnet')]"
+            },
+            "secondaryTestFailoverSubnetId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('secondaryVnetName'), 'test-failover-subnet')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "shared-recovery-vault",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "prefix": {
+            "value": "[parameters('prefix')]"
+          },
+          "location": {
+            "value": "[parameters('secondaryLocation')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "18151941612871230545"
+            }
+          },
+          "parameters": {
+            "prefix": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces",
+              "apiVersion": "2023-09-01",
+              "name": "[format('{0}-law', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "sku": {
+                  "name": "PerGB2018"
+                },
+                "retentionInDays": 30
+              }
+            },
+            {
+              "type": "Microsoft.RecoveryServices/vaults",
+              "apiVersion": "2023-04-01",
+              "name": "[format('{0}-rsv', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "RS0",
+                "tier": "Standard"
+              },
+              "identity": {
+                "type": "SystemAssigned"
+              },
+              "properties": {
+                "publicNetworkAccess": "Enabled",
+                "securitySettings": {
+                  "immutabilitySettings": {
+                    "state": "Unlocked"
+                  },
+                  "softDeleteSettings": {
+                    "softDeleteState": "AlwaysON",
+                    "softDeleteRetentionPeriodInDays": 14
+                  }
+                },
+                "monitoringSettings": {
+                  "azureMonitorAlertSettings": {
+                    "alertsForAllJobFailures": "Enabled"
+                  }
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "apiVersion": "2021-05-01-preview",
+              "scope": "[resourceId('Microsoft.RecoveryServices/vaults', format('{0}-rsv', parameters('prefix')))]",
+              "name": "[format('{0}-rsv-diag', parameters('prefix'))]",
+              "properties": {
+                "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law', parameters('prefix')))]",
+                "logs": [
+                  {
+                    "categoryGroup": "allLogs",
+                    "enabled": true
+                  }
+                ],
+                "metrics": [
+                  {
+                    "category": "Health",
+                    "enabled": true
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law', parameters('prefix')))]",
+                "[resourceId('Microsoft.RecoveryServices/vaults', format('{0}-rsv', parameters('prefix')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "vaultName": {
+              "type": "string",
+              "value": "[format('{0}-rsv', parameters('prefix'))]"
+            },
+            "vaultId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.RecoveryServices/vaults', format('{0}-rsv', parameters('prefix')))]"
+            },
+            "vaultPrincipalId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.RecoveryServices/vaults', format('{0}-rsv', parameters('prefix'))), '2023-04-01', 'full').identity.principalId]"
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.OperationalInsights/workspaces', format('{0}-law', parameters('prefix')))]"
+            },
+            "logAnalyticsWorkspaceName": {
+              "type": "string",
+              "value": "[format('{0}-law', parameters('prefix'))]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "condition": "[or(equals(parameters('deploymentMode'), 'iaas'), equals(parameters('deploymentMode'), 'all'))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "iaas-vm-lab",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "prefix": {
+            "value": "[parameters('prefix')]"
+          },
+          "location": {
+            "value": "[parameters('primaryLocation')]"
+          },
+          "linuxVmCount": {
+            "value": "[parameters('linuxVmCount')]"
+          },
+          "deployWindowsVm": {
+            "value": "[parameters('deployWindowsVm')]"
+          },
+          "adminUsername": {
+            "value": "[parameters('adminUsername')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('adminPassword')]"
+          },
+          "subnetId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'shared-networking'), '2025-04-01').outputs.primaryIaasSubnetId.value]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "15240271615044711214"
+            }
+          },
+          "parameters": {
+            "prefix": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "subnetId": {
+              "type": "string"
+            },
+            "linuxVmCount": {
+              "type": "int"
+            },
+            "deployWindowsVm": {
+              "type": "bool"
+            },
+            "adminUsername": {
+              "type": "string"
+            },
+            "adminPassword": {
+              "type": "securestring"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "variables": {
+            "copy": [
+              {
+                "name": "linuxVmNames",
+                "count": "[length(range(0, parameters('linuxVmCount')))]",
+                "input": "[format('{0}-linux-{1}', variables('vmBase'), add(range(0, parameters('linuxVmCount'))[range(0, parameters('linuxVmCount'))[copyIndex('linuxVmNames')]], 1))]"
+              }
+            ],
+            "nicBase": "[format('{0}-nic', parameters('prefix'))]",
+            "vmBase": "[format('{0}-vm', parameters('prefix'))]"
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "pipLinux",
+                "count": "[length(range(0, parameters('linuxVmCount')))]"
+              },
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-pip-linux-{1}', parameters('prefix'), add(range(0, parameters('linuxVmCount'))[copyIndex()], 1))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static"
+              }
+            },
+            {
+              "copy": {
+                "name": "nicLinux",
+                "count": "[length(range(0, parameters('linuxVmCount')))]"
+              },
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-linux-{1}', variables('nicBase'), add(range(0, parameters('linuxVmCount'))[copyIndex()], 1))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "ipconfig1",
+                    "properties": {
+                      "subnet": {
+                        "id": "[parameters('subnetId')]"
+                      },
+                      "privateIPAllocationMethod": "Dynamic",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-pip-linux-{1}', parameters('prefix'), add(range(0, parameters('linuxVmCount'))[range(0, parameters('linuxVmCount'))[copyIndex()]], 1)))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-pip-linux-{1}', parameters('prefix'), add(range(0, parameters('linuxVmCount'))[range(0, parameters('linuxVmCount'))[copyIndex()]], 1)))]"
+              ]
+            },
+            {
+              "copy": {
+                "name": "vmLinux",
+                "count": "[length(range(0, parameters('linuxVmCount')))]"
+              },
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2024-07-01",
+              "name": "[format('{0}-linux-{1}', variables('vmBase'), add(range(0, parameters('linuxVmCount'))[copyIndex()], 1))]",
+              "location": "[parameters('location')]",
+              "tags": "[union(parameters('tags'), createObject('drRole', 'source', 'drSequence', format('{0}', add(range(0, parameters('linuxVmCount'))[copyIndex()], 1))))]",
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "Standard_B2s"
+                },
+                "osProfile": {
+                  "computerName": "[format('{0}linux{1}', parameters('prefix'), add(range(0, parameters('linuxVmCount'))[copyIndex()], 1))]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]",
+                  "linuxConfiguration": {
+                    "disablePasswordAuthentication": false,
+                    "patchSettings": {
+                      "patchMode": "ImageDefault",
+                      "assessmentMode": "ImageDefault"
+                    },
+                    "provisionVMAgent": true
+                  }
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "Canonical",
+                    "offer": "0001-com-ubuntu-server-jammy",
+                    "sku": "22_04-lts-gen2",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "createOption": "FromImage",
+                    "managedDisk": {
+                      "storageAccountType": "Premium_LRS"
+                    }
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-linux-{1}', variables('nicBase'), add(range(0, parameters('linuxVmCount'))[range(0, parameters('linuxVmCount'))[copyIndex()]], 1)))]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-linux-{1}', variables('nicBase'), add(range(0, parameters('linuxVmCount'))[range(0, parameters('linuxVmCount'))[copyIndex()]], 1)))]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployWindowsVm')]",
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-pip-win-1', parameters('prefix'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "properties": {
+                "publicIPAllocationMethod": "Static"
+              }
+            },
+            {
+              "condition": "[parameters('deployWindowsVm')]",
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2024-05-01",
+              "name": "[format('{0}-win-1', variables('nicBase'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "ipconfig1",
+                    "properties": {
+                      "subnet": {
+                        "id": "[parameters('subnetId')]"
+                      },
+                      "privateIPAllocationMethod": "Dynamic",
+                      "publicIPAddress": {
+                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-pip-win-1', parameters('prefix')))]"
+                      }
+                    }
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-pip-win-1', parameters('prefix')))]"
+              ]
+            },
+            {
+              "condition": "[parameters('deployWindowsVm')]",
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2024-07-01",
+              "name": "[format('{0}-win-1', variables('vmBase'))]",
+              "location": "[parameters('location')]",
+              "tags": "[union(parameters('tags'), createObject('drRole', 'source', 'drSequence', 'windows-1'))]",
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "Standard_B2ms"
+                },
+                "osProfile": {
+                  "computerName": "[format('{0}win1', parameters('prefix'))]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]",
+                  "windowsConfiguration": {
+                    "enableAutomaticUpdates": true,
+                    "patchSettings": {
+                      "patchMode": "AutomaticByOS",
+                      "assessmentMode": "ImageDefault"
+                    }
+                  }
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "MicrosoftWindowsServer",
+                    "offer": "WindowsServer",
+                    "sku": "2022-datacenter-azure-edition",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "createOption": "FromImage",
+                    "managedDisk": {
+                      "storageAccountType": "Premium_LRS"
+                    }
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-win-1', variables('nicBase')))]"
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-win-1', variables('nicBase')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "vmNames": {
+              "type": "array",
+              "value": "[if(parameters('deployWindowsVm'), concat(variables('linuxVmNames'), createArray(format('{0}-win-1', variables('vmBase')))), variables('linuxVmNames'))]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'shared-networking')]"
+      ]
+    },
+    {
+      "condition": "[or(equals(parameters('deploymentMode'), 'paas'), equals(parameters('deploymentMode'), 'all'))]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "paas-appservice-sql",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "prefix": {
+            "value": "[parameters('prefix')]"
+          },
+          "primaryLocation": {
+            "value": "[parameters('primaryLocation')]"
+          },
+          "secondaryLocation": {
+            "value": "[parameters('secondaryLocation')]"
+          },
+          "sqlAadAdminName": {
+            "value": "[parameters('sqlAadAdminName')]"
+          },
+          "sqlAadAdminObjectId": {
+            "value": "[parameters('sqlAadAdminObjectId')]"
+          },
+          "sqlAadAdminTenantId": {
+            "value": "[parameters('sqlAadAdminTenantId')]"
+          },
+          "appServiceSkuName": {
+            "value": "[parameters('appServiceSkuName')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "8838293971667022927"
+            }
+          },
+          "parameters": {
+            "prefix": {
+              "type": "string"
+            },
+            "primaryLocation": {
+              "type": "string"
+            },
+            "secondaryLocation": {
+              "type": "string"
+            },
+            "sqlAadAdminName": {
+              "type": "string"
+            },
+            "sqlAadAdminObjectId": {
+              "type": "string"
+            },
+            "sqlAadAdminTenantId": {
+              "type": "string"
+            },
+            "appServiceSkuName": {
+              "type": "string",
+              "defaultValue": "P0v3",
+              "metadata": {
+                "description": "App Service Plan SKU name."
+              }
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}-asp-{1}', parameters('prefix'), parameters('primaryLocation'))]",
+              "location": "[parameters('primaryLocation')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('appServiceSkuName')]"
+              },
+              "properties": {
+                "reserved": true
+              }
+            },
+            {
+              "type": "Microsoft.Web/serverfarms",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}-asp-{1}', parameters('prefix'), parameters('secondaryLocation'))]",
+              "location": "[parameters('secondaryLocation')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('appServiceSkuName')]"
+              },
+              "properties": {
+                "reserved": true
+              }
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}-web-{1}', parameters('prefix'), parameters('primaryLocation'))]",
+              "location": "[parameters('primaryLocation')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', format('{0}-asp-{1}', parameters('prefix'), parameters('primaryLocation')))]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "linuxFxVersion": "DOTNETCORE|8.0",
+                  "minTlsVersion": "1.2"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', format('{0}-asp-{1}', parameters('prefix'), parameters('primaryLocation')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Web/sites",
+              "apiVersion": "2024-04-01",
+              "name": "[format('{0}-web-{1}', parameters('prefix'), parameters('secondaryLocation'))]",
+              "location": "[parameters('secondaryLocation')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', format('{0}-asp-{1}', parameters('prefix'), parameters('secondaryLocation')))]",
+                "httpsOnly": true,
+                "siteConfig": {
+                  "linuxFxVersion": "DOTNETCORE|8.0",
+                  "minTlsVersion": "1.2"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', format('{0}-asp-{1}', parameters('prefix'), parameters('secondaryLocation')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Sql/servers",
+              "apiVersion": "2023-08-01-preview",
+              "name": "[format('{0}-sql-{1}', parameters('prefix'), parameters('primaryLocation'))]",
+              "location": "[parameters('primaryLocation')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "minimalTlsVersion": "1.2",
+                "publicNetworkAccess": "Enabled",
+                "administrators": {
+                  "administratorType": "ActiveDirectory",
+                  "login": "[parameters('sqlAadAdminName')]",
+                  "sid": "[parameters('sqlAadAdminObjectId')]",
+                  "tenantId": "[parameters('sqlAadAdminTenantId')]",
+                  "azureADOnlyAuthentication": true,
+                  "principalType": "User"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Sql/servers",
+              "apiVersion": "2023-08-01-preview",
+              "name": "[format('{0}-sql-{1}', parameters('prefix'), parameters('secondaryLocation'))]",
+              "location": "[parameters('secondaryLocation')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "minimalTlsVersion": "1.2",
+                "publicNetworkAccess": "Enabled",
+                "administrators": {
+                  "administratorType": "ActiveDirectory",
+                  "login": "[parameters('sqlAadAdminName')]",
+                  "sid": "[parameters('sqlAadAdminObjectId')]",
+                  "tenantId": "[parameters('sqlAadAdminTenantId')]",
+                  "azureADOnlyAuthentication": true,
+                  "principalType": "User"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Sql/servers/databases",
+              "apiVersion": "2023-08-01-preview",
+              "name": "[format('{0}/{1}', format('{0}-sql-{1}', parameters('prefix'), parameters('primaryLocation')), format('{0}appdb', parameters('prefix')))]",
+              "location": "[parameters('primaryLocation')]",
+              "sku": {
+                "name": "GP_S_Gen5_2",
+                "tier": "GeneralPurpose"
+              },
+              "properties": {
+                "autoPauseDelay": 60,
+                "minCapacity": 1
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', format('{0}-sql-{1}', parameters('prefix'), parameters('primaryLocation')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Sql/servers/failoverGroups",
+              "apiVersion": "2023-08-01-preview",
+              "name": "[format('{0}/{1}', format('{0}-sql-{1}', parameters('prefix'), parameters('primaryLocation')), format('{0}-fog', parameters('prefix')))]",
+              "properties": {
+                "partnerServers": [
+                  {
+                    "id": "[resourceId('Microsoft.Sql/servers', format('{0}-sql-{1}', parameters('prefix'), parameters('secondaryLocation')))]"
+                  }
+                ],
+                "databases": [
+                  "[resourceId('Microsoft.Sql/servers/databases', format('{0}-sql-{1}', parameters('prefix'), parameters('primaryLocation')), format('{0}appdb', parameters('prefix')))]"
+                ],
+                "readWriteEndpoint": {
+                  "failoverPolicy": "Manual"
+                },
+                "readOnlyEndpoint": {
+                  "failoverPolicy": "Disabled"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers/databases', format('{0}-sql-{1}', parameters('prefix'), parameters('primaryLocation')), format('{0}appdb', parameters('prefix')))]",
+                "[resourceId('Microsoft.Sql/servers', format('{0}-sql-{1}', parameters('prefix'), parameters('primaryLocation')))]",
+                "[resourceId('Microsoft.Sql/servers', format('{0}-sql-{1}', parameters('prefix'), parameters('secondaryLocation')))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "webAppPrimaryName": {
+              "type": "string",
+              "value": "[format('{0}-web-{1}', parameters('prefix'), parameters('primaryLocation'))]"
+            },
+            "webAppSecondaryName": {
+              "type": "string",
+              "value": "[format('{0}-web-{1}', parameters('prefix'), parameters('secondaryLocation'))]"
+            },
+            "failoverGroupName": {
+              "type": "string",
+              "value": "[format('{0}-fog', parameters('prefix'))]"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "deploymentMode": {
+      "type": "string",
+      "value": "[parameters('deploymentMode')]"
+    },
+    "vaultName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'shared-recovery-vault'), '2025-04-01').outputs.vaultName.value]"
+    },
+    "vaultId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'shared-recovery-vault'), '2025-04-01').outputs.vaultId.value]"
+    },
+    "vaultPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'shared-recovery-vault'), '2025-04-01').outputs.vaultPrincipalId.value]"
+    },
+    "logAnalyticsWorkspaceName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'shared-recovery-vault'), '2025-04-01').outputs.logAnalyticsWorkspaceName.value]"
+    },
+    "primaryVnetId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'shared-networking'), '2025-04-01').outputs.primaryVnetId.value]"
+    },
+    "secondaryVnetId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'shared-networking'), '2025-04-01').outputs.secondaryVnetId.value]"
+    },
+    "primaryIaasSubnetId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'shared-networking'), '2025-04-01').outputs.primaryIaasSubnetId.value]"
+    },
+    "secondaryIaasSubnetId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'shared-networking'), '2025-04-01').outputs.secondaryIaasSubnetId.value]"
+    },
+    "iaasVmNames": {
+      "type": "array",
+      "value": "[if(or(equals(parameters('deploymentMode'), 'iaas'), equals(parameters('deploymentMode'), 'all')), reference(resourceId('Microsoft.Resources/deployments', 'iaas-vm-lab'), '2025-04-01').outputs.vmNames.value, createArray())]"
+    },
+    "paasWebAppPrimaryName": {
+      "type": "string",
+      "value": "[if(or(equals(parameters('deploymentMode'), 'paas'), equals(parameters('deploymentMode'), 'all')), reference(resourceId('Microsoft.Resources/deployments', 'paas-appservice-sql'), '2025-04-01').outputs.webAppPrimaryName.value, '')]"
+    },
+    "paasSqlFailoverGroupName": {
+      "type": "string",
+      "value": "[if(or(equals(parameters('deploymentMode'), 'paas'), equals(parameters('deploymentMode'), 'all')), reference(resourceId('Microsoft.Resources/deployments', 'paas-appservice-sql'), '2025-04-01').outputs.failoverGroupName.value, '')]"
+    }
+  }
+}

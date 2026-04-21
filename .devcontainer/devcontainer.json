@@ -1,0 +1,39 @@
+{
+  "name": "Azure DR Sandbox",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/azure-cli:1": {
+      "extensions": "site-recovery"
+    },
+    "ghcr.io/devcontainers/features/powershell:1": {},
+    "ghcr.io/azure/azure-dev/azd:0": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-azuretools.vscode-bicep",
+        "ms-azuretools.vscode-azureresourcegroups",
+        "ms-azuretools.azure-dev",
+        "ms-vscode.azure-account",
+        "ms-vscode.powershell",
+        "pomdtr.excalidraw-editor"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "pwsh"
+      }
+    }
+  },
+  "remoteEnv": {
+    "DR_DEPLOYMENT_MODE": "all",
+    "DR_PREFIX": "drsandbox",
+    "AZURE_LOCATION": "eastus2",
+    "DR_SECONDARY_LOCATION": "westus2",
+    "DR_LINUX_VM_COUNT": "2",
+    "DR_DEPLOY_WINDOWS_VM": "true",
+    "DR_VM_ADMIN_USERNAME": "azureuser",
+    "DR_ASR_AUTO_ENABLE": "false"
+  },
+  "postCreateCommand": "pwsh -NoProfile -Command \"Write-Host 'Azure DR Sandbox dev container ready. Run azd auth login to begin.'\""
+}

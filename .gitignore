@@ -1,0 +1,25 @@
+# azd
+.azure/
+!.azure/plan.md
+
+# Environment / secrets
+*.env
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+!.vscode/extensions.json
+!.vscode/mcp.json
+*.swp
+
+# Bicep
+*.bicepparam.local
+
+# Logs
+*.log
+
+# Cloned icon source (regenerate with scripts/build-excalidraw.py)
+.msft-icons/

@@ -1,0 +1,21 @@
+name: azure-dr-sandbox
+metadata:
+  template: azure-dr-sandbox@0.1.0
+
+infra:
+  provider: bicep
+  path: infra
+
+hooks:
+  preprovision:
+    - shell: pwsh
+      run: ./infra/hooks/preprovision.ps1
+  postprovision:
+    - shell: pwsh
+      run: ./infra/hooks/postdeploy.ps1
+  predown:
+    - shell: pwsh
+      run: ./infra/hooks/postdown.ps1
+  postdown:
+    - shell: pwsh
+      run: ./infra/hooks/postdown.ps1
