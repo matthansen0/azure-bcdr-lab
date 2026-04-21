@@ -1,0 +1,22 @@
+* text=auto
+
+# Enforce LF for source, config, and docs to avoid CRLF-only diffs
+*.ps1 text eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.bicep text eol=lf
+*.bicepparam text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.svg text eol=lf
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.zip binary
+*.excalidrawlib -text
