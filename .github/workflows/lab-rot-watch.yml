@@ -1,0 +1,261 @@
+name: Lab Rot Watch
+
+on:
+  schedule:
+    - cron: '17 13 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  lab-rot-watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run static rot checks
+        id: scan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          findings_file="$(mktemp)"
+          touch "$findings_file"
+
+          add_finding() {
+            echo "- [ ] $1" >> "$findings_file"
+          }
+
+          # 1) docs/labs numbering + index parity (learner-blocking drift)
+          mapfile -t lab_files < <(find docs/labs -maxdepth 1 -type f -name '[0-9][0-9]-*.md' -printf '%f\n' | sort)
+          if [ "${#lab_files[@]}" -eq 0 ]; then
+            add_finding "No numbered lab files found under docs/labs (expected docs/labs/NN-*.md)."
+          else
+            expected=1
+            for f in "${lab_files[@]}"; do
+              n="${f%%-*}"
+              want=$(printf '%02d' "$expected")
+              if [ "$n" != "$want" ]; then
+                add_finding "Lab numbering gap/out-of-order at $f (expected prefix $want)."
+              fi
+              expected=$((expected + 1))
+            done
+
+            for f in "${lab_files[@]}"; do
+              if ! grep -Fq "$f" docs/labs/README.md; then
+                add_finding "docs/labs/README.md does not reference lab file $f."
+              fi
+            done
+          fi
+
+          # 2) markdown local-link integrity + script path existence (docs drift)
+          python3 - <<'PY' > /tmp/lab_rot_link_findings.txt
+          import os
+          import re
+          from pathlib import Path
+
+          roots = [Path('README.md')] + sorted(Path('docs').rglob('*.md'))
+          bad = []
+          for md in roots:
+            text = md.read_text(encoding='utf-8', errors='ignore')
+            links = re.findall(r'\[[^\]]*\]\(([^)]+)\)', text)
+            for raw in links:
+              target = raw.strip()
+              if not target or target.startswith(('http://', 'https://', 'mailto:', '#')):
+                continue
+              target = target.split('#', 1)[0]
+              if not target:
+                continue
+              p = (md.parent / target).resolve()
+              if not p.exists():
+                bad.append(f"{md}:{target}")
+
+          for b in bad:
+            print(b)
+          PY
+          if [ -s /tmp/lab_rot_link_findings.txt ]; then
+            while IFS= read -r line; do
+              add_finding "Broken local markdown link target: $line"
+            done < /tmp/lab_rot_link_findings.txt
+          fi
+
+          # 3) ASR naming-contract drift between scripts and IaC (repo-specific risk)
+          if ! grep -Fq "name: '\${prefix}-rsv'" infra/modules/shared/recoveryVault.bicep; then
+            add_finding "Recovery vault naming contract drift: infra/modules/shared/recoveryVault.bicep no longer uses \${prefix}-rsv while scripts/asr/enable-replication.ps1 expects it."
+          fi
+          if ! grep -Fq "'\${prefix}-vnet-\${secondaryLocation}'" infra/modules/shared/networking.bicep; then
+            add_finding "Secondary VNet naming contract drift: infra/modules/shared/networking.bicep no longer uses \${prefix}-vnet-\${secondaryLocation} while scripts/asr/enable-replication.ps1 expects it."
+          fi
+          if ! grep -Fq 'postprovision:' azure.yaml || ! grep -Fq './infra/hooks/postdeploy.ps1' azure.yaml; then
+            add_finding "azure.yaml no longer wires postprovision to infra/hooks/postdeploy.ps1 (lab guidance may drift from automation)."
+          fi
+
+          # 4) Bicep apiVersion freshness + preview usage (upstream mutability risk)
+          mapfile -t versions < <(find infra -type f -name '*.bicep' -print0 | xargs -0 grep -hoE "@[0-9]{4}-[0-9]{2}-[0-9]{2}(-preview)?" 2>/dev/null | tr -d '@' | sort -u)
+          cutoff_epoch=$(date -u -d '24 months ago' +%s)
+          now_epoch=$(date -u +%s)
+          for v in "${versions[@]:-}"; do
+            [ -z "${v:-}" ] && continue
+            base="${v%-preview}"
+            ver_epoch=$(date -u -d "$base" +%s || echo 0)
+            if [ "$ver_epoch" -eq 0 ]; then
+              add_finding "Unparseable apiVersion detected in Bicep: $v"
+              continue
+            fi
+            if [[ "$v" == *-preview ]]; then
+              add_finding "Preview apiVersion in use: $v (review if a stable API version is available)."
+            fi
+            if [ "$ver_epoch" -lt "$cutoff_epoch" ]; then
+              age_days=$(( (now_epoch - ver_epoch) / 86400 ))
+              add_finding "Potentially stale apiVersion: $v (~${age_days} days old)."
+            fi
+          done
+
+          # 5) External docs/link health (lightweight link-rot probe)
+          python3 - <<'PY' > /tmp/lab_rot_external_findings.txt
+          import re
+          import socket
+          import urllib.request
+          import urllib.error
+          from pathlib import Path
+
+          files = [Path('README.md')] + sorted(Path('docs').rglob('*.md'))
+          urls = []
+          for p in files:
+            text = p.read_text(encoding='utf-8', errors='ignore')
+            urls += re.findall(r'https?://[^)\s>\]"\']+', text)
+
+          seen = set()
+          checked = []
+          for u in urls:
+            u = u.rstrip('.,;')
+            if u not in seen:
+              seen.add(u)
+              checked.append(u)
+
+          # Keep this bounded and fast.
+          checked = checked[:40]
+
+          socket.setdefaulttimeout(12)
+          for url in checked:
+            req = urllib.request.Request(url, method='HEAD', headers={'User-Agent': 'lab-rot-watch'})
+            try:
+              with urllib.request.urlopen(req) as resp:
+                code = getattr(resp, 'status', 200)
+                if code in (404, 410):
+                  print(f"{url} -> HTTP {code}")
+            except urllib.error.HTTPError as e:
+              if e.code in (404, 410):
+                print(f"{url} -> HTTP {e.code}")
+            except Exception as e:
+              msg = str(e)
+              if 'Name or service not known' in msg or 'nodename nor servname provided' in msg:
+                print(f"{url} -> DNS failure")
+          PY
+          if [ -s /tmp/lab_rot_external_findings.txt ]; then
+            while IFS= read -r line; do
+              add_finding "External link health issue: $line"
+            done < /tmp/lab_rot_external_findings.txt
+          fi
+
+          if [ ! -s "$findings_file" ]; then
+            {
+              echo "has_findings=false"
+              echo "fingerprint=none"
+            } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          findings_text=$(cat "$findings_file")
+          fingerprint=$(printf '%s' "$findings_text" | sha256sum | awk '{print $1}')
+
+          {
+            echo "has_findings=true"
+            echo "fingerprint=$fingerprint"
+            echo "findings<<EOF"
+            cat "$findings_file"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open or update lab-rot issue
+        if: steps.scan.outputs.has_findings == 'true'
+        uses: actions/github-script@v7
+        env:
+          FINDINGS: ${{ steps.scan.outputs.findings }}
+          FINGERPRINT: ${{ steps.scan.outputs.fingerprint }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const findings = process.env.FINDINGS || '';
+            const fingerprint = process.env.FINGERPRINT || '';
+            const marker = `<!-- lab-rot-fingerprint:${fingerprint} -->`;
+            const labelName = 'lab-rot';
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: labelName });
+            } catch (e) {
+              if (e.status === 404) {
+                await github.rest.issues.createLabel({
+                  owner,
+                  repo,
+                  name: labelName,
+                  color: 'FBCA04',
+                  description: 'Weekly lab drift findings (static checks)'
+                });
+              } else {
+                throw e;
+              }
+            }
+
+            const openIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              labels: labelName,
+              per_page: 100
+            });
+
+            const matching = openIssues.find(i => (i.body || '').includes(marker));
+            const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+            const date = new Date().toISOString().slice(0, 10);
+
+            if (matching) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: matching.number,
+                body: `Lab Rot Watch re-ran on ${date} and found the same fingerprint.\n\nRun: ${runUrl}`
+              });
+              core.info(`Updated existing issue #${matching.number}`);
+              return;
+            }
+
+            const title = `Lab rot watch findings (${date})`;
+            const body = [
+              marker,
+              '',
+              'Static-analysis drift signals were detected in this lab repository.',
+              '',
+              '## Findings checklist',
+              findings,
+              '',
+              `Run: ${runUrl}`
+            ].join('\n');
+
+            const created = await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              body,
+              labels: [labelName]
+            });
+
+            core.info(`Opened issue #${created.data.number}`);
+
+      - name: No findings
+        if: steps.scan.outputs.has_findings != 'true'
+        run: echo "No lab-rot findings detected."
