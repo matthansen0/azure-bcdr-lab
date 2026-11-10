@@ -1,0 +1,27 @@
+name: Lab Rot Validation
+
+on:
+  pull_request:
+    paths:
+      - '.github/scripts/**'
+      - '.github/tests/**'
+      - '.github/workflows/lab-rot-validation.yml'
+      - '.github/workflows/lab-rot-watch.yml'
+      - 'infra/**'
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test lab rot checks and PaaS template
+        shell: bash
+        run: |
+          python3 -m unittest discover -s .github/tests -p 'test_*.py'
+          node --test .github/tests/*.test.js
