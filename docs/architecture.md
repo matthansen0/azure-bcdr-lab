@@ -32,7 +32,7 @@
 
 - Deploys:
   - App Service plans in primary + secondary regions
-  - Web apps in primary + secondary regions
+  - Web apps using the .NET 10 LTS runtime in primary + secondary regions
   - Azure SQL primary + secondary servers
   - Geo-secondary DB + failover group
 
@@ -52,6 +52,22 @@
 3. `postdown.ps1` (azd `predown` **and** `postdown`)
    - Runs `scripts/asr/cleanup-asr.ps1` before and after resource deletion
    - Removes ASR protected items, container/network mappings, and fabrics so no generated cleanup script is required
+
+## Lab Rot Watch
+
+The GitHub Actions watcher checks lab numbering, links, automation contracts, and
+unexpected Bicep preview APIs on a schedule or manual run. Stable API age alone
+does not create an issue. The diagnostics settings preview API is an explicit
+exception because the vault uses its `categoryGroup` property. When an issue
+for the same findings is open, reruns create neither a duplicate nor a comment.
+
+The watcher tests also run on pull requests affecting its scripts, tests,
+workflow, or infrastructure. Run them locally with Python 3 and Node.js:
+
+```bash
+python3 -m unittest discover -s .github/tests -p 'test_*.py'
+node --test .github/tests/*.test.js
+```
 
 ## Security and Operations Notes
 

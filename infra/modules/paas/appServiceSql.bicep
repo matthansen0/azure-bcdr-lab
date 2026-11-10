@@ -42,7 +42,7 @@ resource webPrimary 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: aspPrimary.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOTNETCORE|8.0'
+      linuxFxVersion: 'DOTNETCORE|10.0'
       minTlsVersion: '1.2'
     }
   }
@@ -56,13 +56,13 @@ resource webSecondary 'Microsoft.Web/sites@2024-04-01' = {
     serverFarmId: aspSecondary.id
     httpsOnly: true
     siteConfig: {
-      linuxFxVersion: 'DOTNETCORE|8.0'
+      linuxFxVersion: 'DOTNETCORE|10.0'
       minTlsVersion: '1.2'
     }
   }
 }
 
-resource sqlPrimary 'Microsoft.Sql/servers@2023-08-01-preview' = {
+resource sqlPrimary 'Microsoft.Sql/servers@2023-08-01' = {
   name: '${prefix}-sql-${primaryLocation}'
   location: primaryLocation
   tags: tags
@@ -80,7 +80,7 @@ resource sqlPrimary 'Microsoft.Sql/servers@2023-08-01-preview' = {
   }
 }
 
-resource sqlSecondary 'Microsoft.Sql/servers@2023-08-01-preview' = {
+resource sqlSecondary 'Microsoft.Sql/servers@2023-08-01' = {
   name: '${prefix}-sql-${secondaryLocation}'
   location: secondaryLocation
   tags: tags
@@ -98,7 +98,7 @@ resource sqlSecondary 'Microsoft.Sql/servers@2023-08-01-preview' = {
   }
 }
 
-resource sqlDbPrimary 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
+resource sqlDbPrimary 'Microsoft.Sql/servers/databases@2023-08-01' = {
   parent: sqlPrimary
   name: '${prefix}appdb'
   location: primaryLocation
@@ -112,7 +112,7 @@ resource sqlDbPrimary 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
   }
 }
 
-resource failoverGroup 'Microsoft.Sql/servers/failoverGroups@2023-08-01-preview' = {
+resource failoverGroup 'Microsoft.Sql/servers/failoverGroups@2023-08-01' = {
   parent: sqlPrimary
   name: '${prefix}-fog'
   properties: {
