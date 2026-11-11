@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "4763912210185722269"
+      "templateHash": "9124135188483474679"
     }
   },
   "parameters": {
@@ -274,7 +274,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "18151941612871230545"
+              "templateHash": "15055393671973267430"
             }
           },
           "parameters": {
@@ -325,11 +325,6 @@
                     "softDeleteState": "AlwaysON",
                     "softDeleteRetentionPeriodInDays": 14
                   }
-                },
-                "monitoringSettings": {
-                  "azureMonitorAlertSettings": {
-                    "alertsForAllJobFailures": "Enabled"
-                  }
                 }
               }
             },
@@ -348,7 +343,7 @@
                 ],
                 "metrics": [
                   {
-                    "category": "Health",
+                    "category": "AllMetrics",
                     "enabled": true
                   }
                 ]
@@ -714,7 +709,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "8838293971667022927"
+              "templateHash": "184720442570215396"
             }
           },
           "parameters": {
@@ -784,7 +779,7 @@
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', format('{0}-asp-{1}', parameters('prefix'), parameters('primaryLocation')))]",
                 "httpsOnly": true,
                 "siteConfig": {
-                  "linuxFxVersion": "DOTNETCORE|8.0",
+                  "linuxFxVersion": "DOTNETCORE|10.0",
                   "minTlsVersion": "1.2"
                 }
               },
@@ -802,7 +797,7 @@
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', format('{0}-asp-{1}', parameters('prefix'), parameters('secondaryLocation')))]",
                 "httpsOnly": true,
                 "siteConfig": {
-                  "linuxFxVersion": "DOTNETCORE|8.0",
+                  "linuxFxVersion": "DOTNETCORE|10.0",
                   "minTlsVersion": "1.2"
                 }
               },
@@ -812,7 +807,7 @@
             },
             {
               "type": "Microsoft.Sql/servers",
-              "apiVersion": "2023-08-01-preview",
+              "apiVersion": "2023-08-01",
               "name": "[format('{0}-sql-{1}', parameters('prefix'), parameters('primaryLocation'))]",
               "location": "[parameters('primaryLocation')]",
               "tags": "[parameters('tags')]",
@@ -831,7 +826,7 @@
             },
             {
               "type": "Microsoft.Sql/servers",
-              "apiVersion": "2023-08-01-preview",
+              "apiVersion": "2023-08-01",
               "name": "[format('{0}-sql-{1}', parameters('prefix'), parameters('secondaryLocation'))]",
               "location": "[parameters('secondaryLocation')]",
               "tags": "[parameters('tags')]",
@@ -850,7 +845,7 @@
             },
             {
               "type": "Microsoft.Sql/servers/databases",
-              "apiVersion": "2023-08-01-preview",
+              "apiVersion": "2023-08-01",
               "name": "[format('{0}/{1}', format('{0}-sql-{1}', parameters('prefix'), parameters('primaryLocation')), format('{0}appdb', parameters('prefix')))]",
               "location": "[parameters('primaryLocation')]",
               "sku": {
@@ -867,7 +862,7 @@
             },
             {
               "type": "Microsoft.Sql/servers/failoverGroups",
-              "apiVersion": "2023-08-01-preview",
+              "apiVersion": "2023-08-01",
               "name": "[format('{0}/{1}', format('{0}-sql-{1}', parameters('prefix'), parameters('primaryLocation')), format('{0}-fog', parameters('prefix')))]",
               "properties": {
                 "partnerServers": [
