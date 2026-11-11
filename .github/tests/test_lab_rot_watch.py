@@ -72,6 +72,53 @@ resource actual 'Microsoft.Sql/servers@2024-05-01-preview' = {}
         self.assertEqual(len(findings), 1)
         self.assertIn("Microsoft.Sql/servers@2024-05-01-preview", findings[0])
 
+    def test_multiline_strings_do_not_create_preview_findings(self):
+        for prefix, content in (
+            ("", "literal text"),
+            ("$", "${'value'}"),
+            ("$$", "$${'value'}"),
+        ):
+            with self.subTest(prefix=prefix):
+                self.write_bicep(
+                    "multiline.bicep",
+                    f"var example = {prefix}'''\n"
+                    "resource ignored 'Microsoft.Sql/servers@2023-08-01-preview' = {}\n"
+                    f"{content}\n"
+                    "'''\n"
+                    "resource stable 'Microsoft.Sql/servers@2023-08-01' = {}\n",
+                )
+                self.assertEqual(lab_rot_watch.preview_findings(self.infra), [])
+
+    def test_preview_declarations_around_multiline_strings_are_preserved(self):
+        self.write_bicep(
+            "mixed.bicep",
+            """
+resource first 'Microsoft.Sql/servers@2024-05-01-preview' = {}
+var note = 'can\\'t start a /* comment */'
+var example = '''
+/* This is string content, not a Bicep comment.
+resource ignored 'Microsoft.Compute/virtualMachines@2020-01-01-preview' = {}
+'''
+/*
+''' A delimiter in a comment must not start a string.
+*/
+resource second 'Microsoft.Other/settings@2021-05-01-preview' = {}
+var anotherExample = $'''
+resource ignoredAgain 'Microsoft.Network/virtualNetworks@2020-01-01-preview' = {}
+${'value // still string content'}
+'''
+""",
+        )
+        self.assertEqual(
+            lab_rot_watch.preview_findings(self.infra),
+            [
+                "Preview apiVersion in use: Microsoft.Other/settings@2021-05-01-preview "
+                "(review if a stable API version is available).",
+                "Preview apiVersion in use: Microsoft.Sql/servers@2024-05-01-preview "
+                "(review if a stable API version is available).",
+            ],
+        )
+
     def test_missing_infrastructure_directory_fails(self):
         with self.assertRaises(FileNotFoundError):
             lab_rot_watch.preview_findings(self.infra / "missing")

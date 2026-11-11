@@ -13,8 +13,9 @@ RESOURCE_PREVIEW = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 STRING_OR_COMMENT = re.compile(
-    r"(?P<string>'''[\s\S]*?'''|'(?:\\.|[^'\\])*')"
-    r"|(?P<comment>/\*[\s\S]*?\*/|//[^\n]*)"
+    r"'''[\s\S]*?'''"
+    r"|(?P<single_quoted_string>'(?:\\.|[^'\\])*')"
+    r"|/\*[\s\S]*?\*/|//[^\n]*"
 )
 LEGACY_AGE = re.compile(r"(Potentially stale apiVersion: \S+) \(~\d+ days old\)")
 APPROVED_PREVIEWS = {
@@ -34,8 +35,8 @@ def preview_findings(infra_dir: Path) -> list[str]:
     for path in paths:
         text = path.read_text(encoding="utf-8")
         text = STRING_OR_COMMENT.sub(
-            lambda match: match.group("string")
-            or re.sub(r"[^\n]", " ", match.group("comment")),
+            lambda match: match.group("single_quoted_string")
+            or re.sub(r"[^\n]", " ", match.group()),
             text,
         )
         for match in RESOURCE_PREVIEW.finditer(text):
